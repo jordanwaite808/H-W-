@@ -5,7 +5,7 @@ import Knob from './Knob';
 import ClipEditor from './ClipEditor';
 import MiniTimeline from './MiniTimeline';
 import { audioService } from '../services/audioEngine';
-import { Grid3X3, Sliders, PlusCircle } from 'lucide-react';
+import { Grid3X3, Sliders } from 'lucide-react';
 
 interface InstrumentPanelProps {
   currentStep: number;
@@ -41,30 +41,8 @@ const InstrumentPanel: React.FC<InstrumentPanelProps> = ({
       }
   };
 
-  const handleCapture = () => {
-      if (isEmptyClip) {
-          const result = audioService.analyzeTempoAndCapture();
-          if (result.notes.length > 0) {
-              onUpdateBpm(Math.round(result.bpm));
-              onUpdateNotes(result.notes);
-              setHasInteracted(false);
-          }
-      } else {
-          const captured = audioService.capturePerformance();
-          if (captured.length > 0) {
-              const newNotes = [...notes];
-              captured.forEach(n => {
-                  if (!newNotes.some(existing => existing.step === n.step && existing.note === n.note)) {
-                      newNotes.push(n);
-                  }
-              });
-              onUpdateNotes(newNotes);
-          }
-      }
-  };
-
+  // Toggle Step Logic
   const toggleStep = (stepIndex: number) => {
-      // Toggle logic for Ghost Sequencer (MiniTimeline)
       const root = activeTrack.type === 'bass' ? "C2" : (activeTrack.type === 'drum' ? "C2" : "C4");
       const existingAtIndex = notes.findIndex(n => n.step === stepIndex);
       
@@ -89,7 +67,6 @@ const InstrumentPanel: React.FC<InstrumentPanelProps> = ({
 
   const currentClipColor = activeTrack.clips.find(c => c.id === activeClipId)?.color || 'bg-daw-accent';
   
-  // Prepare Steps Boolean Array for MiniTimeline
   const activeSteps = new Array(16).fill(false);
   notes.forEach(n => { activeSteps[n.step] = true; });
 
@@ -101,8 +78,6 @@ const InstrumentPanel: React.FC<InstrumentPanelProps> = ({
       
       {/* 
          TOP SECTION: Clip Editor 
-         If Expanded: Takes 100% Height
-         If Normal: Takes 45% Height
       */}
       <div className={`
         flex flex-col shrink-0 bg-[#0a0a0a] transition-all duration-300 ease-in-out relative
@@ -114,14 +89,13 @@ const InstrumentPanel: React.FC<InstrumentPanelProps> = ({
                 currentStep={currentStep}
                 color={currentClipColor}
                 rootNote="C"
-                scale={isDrum ? "Chromatic" : "Minor"} // Drums show all rows
+                scale={isDrum ? "Chromatic" : "Minor"} 
                 isExpanded={isExpanded}
                 onToggleExpand={() => setIsExpanded(!isExpanded)}
                 onUpdateNotes={onUpdateNotes}
                 trackType={activeTrack.type}
              />
 
-             {/* Header Overlay */}
              {!isExpanded && (
                  <div className="absolute top-2 left-2 pointer-events-none">
                     <span className="text-[10px] text-gray-400 font-mono font-bold">{activeClipName}</span>
@@ -132,12 +106,10 @@ const InstrumentPanel: React.FC<InstrumentPanelProps> = ({
       </div>
 
       {/* 
-         BOTTOM SECTION: Pads / FX / Navigation
-         Hidden if Expanded
+         BOTTOM SECTION: Pads / FX 
       */}
       <div className={`flex-1 flex flex-col relative bg-black overflow-hidden transition-opacity duration-200 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
          
-         {/* Ghost Sequencer (Mid-bar) - Only for Drums */}
          {isDrum && (
              <div className="h-8 bg-[#121212] flex items-center px-2 border-b border-white/5 shrink-0 z-20">
                  <MiniTimeline 
@@ -149,7 +121,6 @@ const InstrumentPanel: React.FC<InstrumentPanelProps> = ({
          )}
 
          <div className="flex-1 relative">
-            {/* TAB: PADS */}
             <div 
                 className={`absolute inset-0 p-2 z-0 transition-opacity duration-200 ${activeTab === 'PADS' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
                 onPointerDown={handlePadInteraction}
@@ -157,7 +128,6 @@ const InstrumentPanel: React.FC<InstrumentPanelProps> = ({
                 <PadGrid trackType={activeTrack.type} rootNote="C" scale="Minor" />
             </div>
 
-            {/* TAB: FX (Context Aware) */}
             <div className={`absolute inset-0 bg-daw-bg p-8 z-0 transition-opacity duration-200 flex items-center justify-center ${activeTab === 'FX' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
                 <div className="grid grid-cols-2 gap-x-12 gap-y-12">
                     {isDrum ? (
@@ -177,22 +147,10 @@ const InstrumentPanel: React.FC<InstrumentPanelProps> = ({
                     )}
                 </div>
             </div>
-            
-            {/* Capture Button (Only show if new ideas present) */}
-            {activeTab !== 'FX' && isEmptyClip && hasInteracted && (
-                <div className="absolute bottom-6 right-6 z-30">
-                     <button 
-                         onClick={handleCapture}
-                         className="h-12 px-6 rounded-full bg-daw-accent text-black font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(255,95,0,0.5)] animate-bounce"
-                     >
-                         <PlusCircle size={20} />
-                         <span>CAPTURE</span>
-                     </button>
-                </div>
-            )}
          </div>
 
-         {/* Bottom Tabs */}
+         {/* Note: Footer Tabs removed here as they are global now in App.tsx or handled there */}
+         {/* We keep the mode switcher here for internal tab (PAD/FX) */}
          <div className="shrink-0 bg-[#0a0a0a] border-t border-[#222] pb-safe z-20">
             <div className="h-14 flex items-center justify-center gap-12 px-8">
                 <button 

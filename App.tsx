@@ -4,7 +4,7 @@ import SessionView from './components/SessionView';
 import InstrumentPanel from './components/InstrumentPanel';
 import Mixer from './components/Mixer';
 import MasterFXPanel from './components/MasterFXPanel';
-import { Play, Pause, ArrowLeft, Plus, Trash2, Folder, MoreVertical, LayoutGrid, SlidersHorizontal, RotateCcw, RotateCw, Copy, Edit2, Layers } from 'lucide-react';
+import { Play, Pause, ArrowLeft, PlusCircle, Trash2, Folder, MoreVertical, LayoutGrid, SlidersHorizontal, RotateCcw, RotateCw, Copy, Edit2, Layers } from 'lucide-react';
 import { Track, AppState, ViewMode, Clip, Project, NoteEvent, MasterState, MasterTab } from './types';
 
 // --- DEFAULTS ---
@@ -108,7 +108,6 @@ interface ContextMenuProps {
 }
 
 const ContextMenu: React.FC<ContextMenuProps> = ({ type, x, y, data, onClose, onAction }) => {
-    // Basic clamping to screen
     const safeX = Math.min(x, window.innerWidth - 150);
     const safeY = Math.min(y, window.innerHeight - 200);
 
@@ -285,10 +284,29 @@ const App: React.FC = () => {
     audioService.setBpm(bpm);
   };
 
+  // AUTO-PLAY ON EDIT
   const handleClipEdit = (trackId: string, clip: Clip) => {
     setActiveTrackId(trackId);
     setActiveClipId(clip.id);
     
+    // Auto-Play Logic
+    setTracks(prev => prev.map(track => {
+      if (track.id !== trackId) return track;
+      return {
+        ...track,
+        clips: track.clips.map(c => ({
+            ...c,
+            isPlaying: c.id === clip.id
+        }))
+      };
+    }));
+    
+    // Ensure Transport is running
+    if (!isPlaying) {
+        setIsPlaying(true);
+        audioService.togglePlayback();
+    }
+
     if (clip.notes.length === 0) {
         updateClipData(trackId, clip.id, { 
             name: 'New Idea',
@@ -306,6 +324,35 @@ const App: React.FC = () => {
             clips: track.clips.map(c => c.id === clipId ? { ...c, ...data } : c)
         };
     }));
+  };
+
+  const handleCapture = () => {
+    if (!activeTrackId || !activeClipId) return;
+
+    const activeTrack = tracks.find(t => t.id === activeTrackId);
+    const clip = activeTrack?.clips.find(c => c.id === activeClipId);
+    if (!activeTrack || !clip) return;
+
+    if (clip.notes.length === 0) {
+        // New Idea
+        const result = audioService.analyzeTempoAndCapture();
+        if (result.notes.length > 0) {
+            updateProjectBpm(Math.round(result.bpm));
+            updateClipData(activeTrackId, activeClipId, { notes: result.notes });
+        }
+    } else {
+        // Overdub
+        const captured = audioService.capturePerformance();
+        if (captured.length > 0) {
+            const newNotes = [...clip.notes];
+            captured.forEach(n => {
+                if (!newNotes.some(existing => existing.step === n.step && existing.note === n.note)) {
+                    newNotes.push(n);
+                }
+            });
+            updateClipData(activeTrackId, activeClipId, { notes: newNotes });
+        }
+    }
   };
 
   const handleBack = () => {
@@ -328,8 +375,7 @@ const App: React.FC = () => {
           if (action === 'delete') {
               updateClipData(trackId, clip.id, { notes: [], name: '', color: 'bg-transparent', isPlaying: false });
           } else if (action === 'duplicate') {
-              // Simplistic dup: copy notes to next slot
-              // Implementation omitted for brevity in this specific response to keep it clean, but logical place
+              // Implementation omitted for brevity
           }
       }
       setContextMenu(null);
@@ -351,7 +397,6 @@ const App: React.FC = () => {
               <div className="flex-1 overflow-y-auto px-4 pb-10">
                   <div className="flex flex-col gap-2">
                       <span className="text-[10px] font-bold text-gray-500 mb-2 px-2 uppercase tracking-widest">Local</span>
-                      
                       {(Object.values(projects) as Project[]).sort((a,b) => b.lastModified - a.lastModified).map(p => (
                           <div 
                             key={p.id} 
@@ -364,10 +409,7 @@ const App: React.FC = () => {
                               <div className="flex-1 flex flex-col justify-center">
                                   <span className="font-bold text-lg leading-none">{p.name}</span>
                                   <span className="text-[12px] text-gray-500 mt-1">
-                                    {new Date(p.lastModified).toLocaleDateString() === new Date().toLocaleDateString() 
-                                        ? 'Today' 
-                                        : new Date(p.lastModified).toLocaleDateString()
-                                    }
+                                    {new Date(p.lastModified).toLocaleDateString() === new Date().toLocaleDateString() ? 'Today' : new Date(p.lastModified).toLocaleDateString()}
                                   </span>
                               </div>
                               <div className="flex items-center gap-4">
@@ -438,8 +480,6 @@ const App: React.FC = () => {
                         onSelectMasterTab={setMasterTab}
                      />
                  </div>
-                 
-                 {/* Master FX Overlay */}
                  {masterTab !== 'MAIN' && (
                      <div className="h-1/2 absolute bottom-0 left-0 right-0 z-40 border-t border-white/10">
                          <MasterFXPanel 
@@ -482,10 +522,22 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* BOTTOM NAVIGATION BAR (Always Visible now) */}
+      {/* BOTTOM NAVIGATION BAR */}
       <div className="h-14 shrink-0 bg-[#0a0a0a] border-t border-[#222] flex items-center justify-around pb-safe z-50">
-          <button className="p-4 text-gray-500 active:text-white"><RotateCcw size={20} /></button>
           
+          {/* Contextual Left Button: CAPTURE if Instrument, Undo/Loop if Session? */}
+          {viewMode === 'INSTRUMENT' ? (
+              <button 
+                onClick={handleCapture}
+                className="w-12 h-12 flex items-center justify-center rounded-full text-daw-accent active:scale-95 transition-transform"
+              >
+                 <PlusCircle size={28} />
+              </button>
+          ) : (
+            <button className="p-4 text-gray-500 active:text-white"><RotateCcw size={20} /></button>
+          )}
+
+          {/* View Toggles */}
           <button 
             onClick={() => setViewMode('SESSION')}
             className={`p-4 ${viewMode === 'SESSION' ? 'text-white' : 'text-gray-600'}`}
@@ -500,6 +552,7 @@ const App: React.FC = () => {
               <SlidersHorizontal size={24} />
           </button>
 
+          {/* Play Button */}
           <button
             onClick={() => {
                 const p = audioService.togglePlayback();

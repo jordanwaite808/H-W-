@@ -37,12 +37,10 @@ const SessionClipTile: React.FC<SessionClipTileProps> = ({
 
     const handlePointerDown = (e: React.PointerEvent) => {
         setIsPressed(true);
-        // Start 500ms timer
         pressTimer.current = window.setTimeout(() => {
-            // Haptic Tick (if supported)
             if (navigator.vibrate) navigator.vibrate(50);
             onContextMenu(e);
-            setIsPressed(false); // Reset press state so we don't trigger click
+            setIsPressed(false); 
         }, 500);
     };
 
@@ -52,7 +50,6 @@ const SessionClipTile: React.FC<SessionClipTileProps> = ({
             pressTimer.current = null;
         }
         if (isPressed) {
-            // Short tap detected
             if (hasNotes) {
                 onTogglePlayback(e as any);
             } else {
@@ -63,28 +60,20 @@ const SessionClipTile: React.FC<SessionClipTileProps> = ({
     };
 
     const handlePointerMove = (e: React.PointerEvent) => {
-        // If moved significantly, cancel long press
-        // For prototype we just cancel on any move to be safe
         if (pressTimer.current) {
-            // Optional: calculate distance
-            // clearTimeout(pressTimer.current);
-            // pressTimer.current = null;
-            // setIsPressed(false);
+            // Optional cancellation logic
         }
     };
     
-    // Cleanup
     useEffect(() => {
         return () => {
              if (pressTimer.current) window.clearTimeout(pressTimer.current);
         };
     }, []);
 
-
-    // --- CANVAS DRAWING (Same as before) ---
+    // --- CANVAS DRAWING ---
     useEffect(() => {
         if (!hasNotes) return;
-        
         const canvas = canvasRef.current;
         const container = containerRef.current;
         if (!canvas || !container) return;
@@ -168,7 +157,7 @@ const SessionClipTile: React.FC<SessionClipTileProps> = ({
     if (!hasNotes) {
         return (
             <div 
-                className="w-full aspect-[16/9] rounded-xl bg-[#0f0f0f] border border-white/5 flex items-center justify-center cursor-pointer active:scale-95 transition-all group hover:border-white/10 hover:bg-[#151515] touch-none"
+                className="w-full h-full aspect-[5/4] rounded-md bg-[#161616] flex items-center justify-center cursor-pointer active:scale-95 transition-all group hover:bg-[#222] touch-none"
                 onPointerDown={handlePointerDown}
                 onPointerUp={handlePointerUp}
                 onPointerLeave={handlePointerUp}
@@ -184,7 +173,7 @@ const SessionClipTile: React.FC<SessionClipTileProps> = ({
         <div 
             ref={containerRef}
             className={`
-                w-full aspect-[16/9] rounded-xl relative overflow-hidden group cursor-pointer transition-all touch-none
+                w-full h-full aspect-[5/4] rounded-md relative overflow-hidden group cursor-pointer transition-all touch-none
                 bg-[#1a1a1a] select-none
                 ${isPlaying ? 'ring-1 ring-white/50 shadow-[0_0_15px_rgba(0,0,0,0.6)]' : ''}
                 ${isPressed ? 'scale-105 shadow-2xl brightness-125 z-50' : ''}
@@ -202,12 +191,10 @@ const SessionClipTile: React.FC<SessionClipTileProps> = ({
 
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/10 pointer-events-none" />
 
-            <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between z-10 pointer-events-none">
-                 <span className="text-[10px] font-bold text-white/90 truncate max-w-[70%] shadow-black drop-shadow-md">
+            {/* Compact Header */}
+            <div className="absolute bottom-1 left-2 right-1 flex items-center justify-between z-10 pointer-events-none">
+                 <span className="text-[10px] font-bold text-white/90 truncate max-w-[80%] shadow-black drop-shadow-md leading-tight">
                     {clip.name || "Untitled"}
-                 </span>
-                 <span className="text-[9px] font-mono text-white/50">
-                    1 BAR
                  </span>
             </div>
 

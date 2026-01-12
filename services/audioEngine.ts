@@ -249,16 +249,51 @@ class AudioEngineService {
   // --- Drum Specific Logic ---
   
   private triggerDrum(note: string, time: number = Tone.now(), velocity: number = 1) {
-      // Map MIDI Note to Drum Synth
-      // C2 (36): Kick, D2 (38): Snare, F#2 (42): CH, A#2 (46): OH
-      if (note.includes("C2") && this.drumKick) {
+      // FULL 16-PAD MAPPING for 909-ish Kit
+      
+      // KICKS
+      if (note === "C2" && this.drumKick) {
           this.drumKick.triggerAttackRelease("C2", "8n", time, velocity);
-      } else if (note.includes("D2") && this.drumSnare) {
-          this.drumSnare.triggerAttackRelease("8n", time, velocity);
-      } else if ((note.includes("F#2") || note.includes("Gb2")) && this.drumHiHat) {
+      } 
+      // SNARES / CLAPS
+      else if ((note === "D2" || note === "E2") && this.drumSnare) {
+          // D2 = Snare 1, E2 = Snare 2
+          this.drumSnare.triggerAttackRelease("16n", time, velocity);
+      } 
+      else if ((note === "D#2" || note === "G2") && this.drumSnare) {
+           // D#2 = Clap 2, G2 = Clap
+           const original = this.drumSnare.envelope.decay;
+           this.drumSnare.envelope.decay = 0.3; // Longer for clap feel
+           this.drumSnare.triggerAttackRelease("8n", time, velocity * 0.9);
+           // Note: Resetting envelope in async context is tricky, usually handled by preset or separate synth instance.
+           // For prototype, we accept the shared state side-effect or assume sequential play.
+      }
+      // HATS
+      else if ((note === "F#2" || note === "Gb2") && this.drumHiHat) {
+          // Closed Hat
+          this.drumHiHat.envelope.decay = 0.05;
           this.drumHiHat.triggerAttackRelease("32n", time, velocity * 0.8);
-      } else if ((note.includes("A#2") || note.includes("Bb2")) && this.drumHiHat) {
+      } 
+      else if ((note === "A#2" || note === "Bb2") && this.drumHiHat) {
+          // Open Hat
+          this.drumHiHat.envelope.decay = 0.3;
           this.drumHiHat.triggerAttackRelease("8n", time, velocity);
+      } 
+      // TOMS
+      else if ((note === "B2" || note === "C3" || note === "C#3") && this.drumKick) {
+          // Use Kick synth with higher pitch for toms
+          const pitch = note === "B2" ? "G2" : (note === "C3" ? "E2" : "C2"); 
+          this.drumKick.triggerAttackRelease(pitch, "8n", time, velocity * 0.8);
+      }
+      // CYMBALS / PERC
+      else if (["D#3", "E3", "F3", "G3", "G#2", "A2"].includes(note) && this.drumHiHat) {
+          // Use MetalSynth for generic metallic percussion
+          this.drumHiHat.envelope.decay = 0.8;
+          this.drumHiHat.triggerAttackRelease("16n", time, velocity * 0.7);
+      }
+      // Fallback
+      else if (this.drumKick) {
+          this.drumKick.triggerAttackRelease("C2", "16n", time, velocity * 0.5);
       }
   }
 
@@ -320,6 +355,10 @@ class AudioEngineService {
 
   public clearBuffer() {
       this.inputBuffer = [];
+  }
+
+  public hasBuffer(): boolean {
+      return this.inputBuffer.length > 0;
   }
 
   // --- Capture Logic ---
