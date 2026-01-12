@@ -249,26 +249,36 @@ class AudioEngineService {
   // --- Drum Specific Logic ---
   
   private triggerDrum(note: string, time: number = Tone.now(), velocity: number = 1) {
-      // FULL 16-PAD MAPPING for 909-ish Kit
-      
-      // KICKS
+      // 16-Pad Mapping Logic (Bottom Left C2 Anchor)
+
+      // KICKS (Row 1)
       if (note === "C2" && this.drumKick) {
+          // Primary Kick
           this.drumKick.triggerAttackRelease("C2", "8n", time, velocity);
       } 
-      // SNARES / CLAPS
-      else if ((note === "D2" || note === "E2") && this.drumSnare) {
-          // D2 = Snare 1, E2 = Snare 2
-          this.drumSnare.triggerAttackRelease("16n", time, velocity);
-      } 
-      else if ((note === "D#2" || note === "G2") && this.drumSnare) {
-           // D#2 = Clap 2, G2 = Clap
-           const original = this.drumSnare.envelope.decay;
-           this.drumSnare.envelope.decay = 0.3; // Longer for clap feel
-           this.drumSnare.triggerAttackRelease("8n", time, velocity * 0.9);
-           // Note: Resetting envelope in async context is tricky, usually handled by preset or separate synth instance.
-           // For prototype, we accept the shared state side-effect or assume sequential play.
+      else if (note === "B1" && this.drumKick) {
+          // Sub Kick
+          this.drumKick.triggerAttackRelease("A1", "8n", time, velocity * 0.9);
       }
-      // HATS
+      
+      // SNARES / RIMS (Row 1)
+      else if (note === "D2" && this.drumSnare) {
+          // Main Snare
+          this.drumSnare.envelope.decay = 0.2;
+          this.drumSnare.triggerAttackRelease("16n", time, velocity);
+      }
+      else if (note === "C#2" && this.drumKick) {
+          // Rim / Side Stick (High pitched membrane click)
+          this.drumKick.envelope.decay = 0.05;
+          this.drumKick.triggerAttackRelease("G3", "32n", time, velocity * 0.7);
+      }
+
+      // HATS / CLAPS / COWBELL (Row 2)
+      else if (note === "D#2" && this.drumSnare) {
+           // Clap
+           this.drumSnare.envelope.decay = 0.3; 
+           this.drumSnare.triggerAttackRelease("8n", time, velocity * 0.9);
+      }
       else if ((note === "F#2" || note === "Gb2") && this.drumHiHat) {
           // Closed Hat
           this.drumHiHat.envelope.decay = 0.05;
@@ -278,19 +288,41 @@ class AudioEngineService {
           // Open Hat
           this.drumHiHat.envelope.decay = 0.3;
           this.drumHiHat.triggerAttackRelease("8n", time, velocity);
-      } 
-      // TOMS
-      else if ((note === "B2" || note === "C3" || note === "C#3") && this.drumKick) {
-          // Use Kick synth with higher pitch for toms
-          const pitch = note === "B2" ? "G2" : (note === "C3" ? "E2" : "C2"); 
-          this.drumKick.triggerAttackRelease(pitch, "8n", time, velocity * 0.8);
       }
-      // CYMBALS / PERC
-      else if (["D#3", "E3", "F3", "G3", "G#2", "A2"].includes(note) && this.drumHiHat) {
-          // Use MetalSynth for generic metallic percussion
-          this.drumHiHat.envelope.decay = 0.8;
+      else if (note === "G#2" && this.drumHiHat) {
+          // Cowbell (MetalSynth tuned)
+          this.drumHiHat.envelope.decay = 0.1;
+          this.drumHiHat.harmonicity = 2; // Specific for cowbell-ish tone
+          this.drumHiHat.triggerAttackRelease("32n", time, velocity * 0.8);
+          // Reset harmonicity after? Ideally we'd use presets, but for now we rely on next trigger resetting or acceptable variation
+      }
+
+      // TOMS (Row 3) - Tuned Kicks
+      else if (note === "G2" && this.drumKick) {
+           this.drumKick.triggerAttackRelease("G2", "8n", time, velocity * 0.8);
+      }
+      else if (note === "B2" && this.drumKick) {
+           this.drumKick.triggerAttackRelease("B2", "8n", time, velocity * 0.8);
+      }
+      else if (note === "D3" && this.drumKick) {
+           this.drumKick.triggerAttackRelease("D3", "8n", time, velocity * 0.8);
+      }
+      else if (note === "D#3" && this.drumHiHat) {
+           // Ride
+           this.drumHiHat.envelope.decay = 1.0;
+           this.drumHiHat.harmonicity = 5.1;
+           this.drumHiHat.triggerAttackRelease("16n", time, velocity * 0.7);
+      }
+
+      // CYMBALS (Row 4)
+      else if ((note === "C#3" || note === "E3" || note === "F3" || note === "G3") && this.drumHiHat) {
+          // Crashes / Bells
+          this.drumHiHat.envelope.decay = 1.2;
+          this.drumHiHat.harmonicity = 3.5;
+          if (note === "F3") this.drumHiHat.envelope.decay = 0.3; // Bell shorter
           this.drumHiHat.triggerAttackRelease("16n", time, velocity * 0.7);
       }
+      
       // Fallback
       else if (this.drumKick) {
           this.drumKick.triggerAttackRelease("C2", "16n", time, velocity * 0.5);

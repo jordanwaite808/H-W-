@@ -168,7 +168,7 @@ const App: React.FC = () => {
 
   // --- PERSISTENCE ---
   useEffect(() => {
-    const saved = localStorage.getItem('haw-storage-v3'); 
+    const saved = localStorage.getItem('haw-storage-v4'); // Incremented version to reset bad state if any
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -177,8 +177,8 @@ const App: React.FC = () => {
         console.error("Load failed", e);
       }
     } else {
-       const def = createDefaultProject('demo-v2', 'Demo Set');
-       setProjects({ 'demo-v2': def });
+       const def = createDefaultProject('demo-v3', 'Demo Project');
+       setProjects({ 'demo-v3': def });
     }
   }, []);
 
@@ -195,7 +195,7 @@ const App: React.FC = () => {
                 lastModified: Date.now()
             }
         };
-        localStorage.setItem('haw-storage-v3', JSON.stringify({
+        localStorage.setItem('haw-storage-v4', JSON.stringify({
             currentProjectId,
             projects: updated
         }));
@@ -239,7 +239,9 @@ const App: React.FC = () => {
 
   const createProject = () => {
       const id = Date.now().toString();
-      const newProj = createDefaultProject(id, `Set ${Object.keys(projects).length + 400}`); 
+      // Smart sequential naming: Project 1, Project 2...
+      const nextNum = Object.keys(projects).length + 1;
+      const newProj = createDefaultProject(id, `Project ${nextNum}`); 
       setProjects(prev => ({ ...prev, [id]: newProj }));
       loadProject(id);
   };
@@ -388,7 +390,7 @@ const App: React.FC = () => {
       return (
           <div className="h-full bg-[#000] text-white flex flex-col font-sans">
               <div className="flex items-center justify-between px-6 py-6 bg-[#000]">
-                  <h1 className="text-3xl font-bold">Sets</h1>
+                  <h1 className="text-3xl font-bold">Projects</h1>
                   <button onClick={createProject} className="bg-white text-black px-4 py-1.5 rounded-full font-bold text-sm hover:scale-105 transition-transform">
                       + New
                   </button>
@@ -445,7 +447,7 @@ const App: React.FC = () => {
             ) : (
                 <button onClick={handleBack} className="flex items-center gap-1 text-gray-400 hover:text-white">
                      <ArrowLeft size={20} />
-                     <span className="text-sm font-bold">Sets</span>
+                     <span className="text-sm font-bold">Projects</span>
                 </button>
             )}
         </div>

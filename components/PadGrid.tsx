@@ -14,42 +14,35 @@ const PadGrid: React.FC<PadGridProps> = ({ trackType = 'synth', rootNote = "C", 
   const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-      // Regenerate grid when scale changes or trackType changes
       if (trackType === 'drum') {
-          // Dedicated 4x4 Drum Layout
+          // Standardized 4x4 Drum Rack Layout (Bottom Left Anchor)
+          // Visual Layout (Top to Bottom in DOM = Row 4 to Row 1)
           const drumPads: PadNote[] = [
-              // Row 4 (Top) - Cymbals/Perc
-              { id: 12, note: "D#3", label: "Ride", isRoot: false, intervalIndex: 0 },
-              { id: 13, note: "E3", label: "Crash", isRoot: false, intervalIndex: 0 },
-              { id: 14, note: "F3", label: "Perc 1", isRoot: false, intervalIndex: 0 },
-              { id: 15, note: "G3", label: "Perc 2", isRoot: false, intervalIndex: 0 },
+              // Row 4 (Top) - Cymbals & Accents
+              { id: 12, note: "C#3", label: "Crash 1", isRoot: false, intervalIndex: 0 },
+              { id: 13, note: "E3", label: "Crash 2", isRoot: false, intervalIndex: 0 },
+              { id: 14, note: "F3", label: "Bell", isRoot: false, intervalIndex: 0 },
+              { id: 15, note: "G3", label: "China", isRoot: false, intervalIndex: 0 },
               
-              // Row 3
-              { id: 8, note: "A#2", label: "OH", isRoot: false, intervalIndex: 0 },
-              { id: 9, note: "B2", label: "Tom Hi", isRoot: false, intervalIndex: 0 },
-              { id: 10, note: "C3", label: "Tom Mid", isRoot: false, intervalIndex: 0 },
-              { id: 11, note: "C#3", label: "Tom Lo", isRoot: false, intervalIndex: 0 },
+              // Row 3 - Toms & Ride
+              { id: 8, note: "D3", label: "Tom Hi", isRoot: false, intervalIndex: 0 },
+              { id: 9, note: "B2", label: "Tom Mid", isRoot: false, intervalIndex: 0 },
+              { id: 10, note: "G2", label: "Tom Lo", isRoot: false, intervalIndex: 0 },
+              { id: 11, note: "D#3", label: "Ride", isRoot: false, intervalIndex: 0 },
 
-              // Row 2
+              // Row 2 - Hats & Perc
               { id: 4, note: "F#2", label: "CH", isRoot: false, intervalIndex: 0 },
-              { id: 5, note: "G2", label: "Clap", isRoot: false, intervalIndex: 0 },
-              { id: 6, note: "G#2", label: "Rim", isRoot: false, intervalIndex: 0 },
-              { id: 7, note: "A2", label: "Shaker", isRoot: false, intervalIndex: 0 },
+              { id: 5, note: "A#2", label: "OH", isRoot: false, intervalIndex: 0 },
+              { id: 6, note: "G#2", label: "Cowbell", isRoot: false, intervalIndex: 0 },
+              { id: 7, note: "D#2", label: "Clap", isRoot: false, intervalIndex: 0 },
 
-              // Row 1 (Bottom) - Kick/Snare
+              // Row 1 (Bottom) - Foundation
               { id: 0, note: "C2", label: "KICK", isRoot: true, intervalIndex: 0 },
               { id: 1, note: "D2", label: "SNARE", isRoot: false, intervalIndex: 0 },
-              { id: 2, note: "D#2", label: "Clap 2", isRoot: false, intervalIndex: 0 },
-              { id: 3, note: "E2", label: "Snare 2", isRoot: false, intervalIndex: 0 },
+              { id: 2, note: "C#2", label: "Rim", isRoot: false, intervalIndex: 0 },
+              { id: 3, note: "B1", label: "Sub", isRoot: false, intervalIndex: 0 },
           ];
-          // We render from Top-Left to Bottom-Right in CSS Grid usually, 
-          // but we want index 0 at bottom left.
-          // Let's sort for standard grid rendering:
-          // Grid 4x4.
-          // Visual Row 0 (Top): 12, 13, 14, 15
-          // ...
-          // Visual Row 3 (Bottom): 0, 1, 2, 3
-          setPads(drumPads.reverse()); // Simple reverse for rendering top-to-bottom
+          setPads(drumPads); 
       } else {
           const startOctave = trackType === 'bass' ? 1 : 3;
           setPads(generateIsomorphicGrid(rootNote, scale, startOctave));
@@ -72,7 +65,6 @@ const PadGrid: React.FC<PadGridProps> = ({ trackType = 'synth', rootNote = "C", 
   const handlePadDown = (note: string, e: React.PointerEvent) => {
     e.preventDefault();
     audioService.triggerAttack(note, getEngineTrackType());
-    // Visual immediate feedback for touch
     e.currentTarget.classList.add('scale-95', 'brightness-150');
   };
 
@@ -94,9 +86,11 @@ const PadGrid: React.FC<PadGridProps> = ({ trackType = 'synth', rootNote = "C", 
       
       if (trackType === 'drum') {
           // Specific Drum Colors
-          if (pad.note === "C2") return 'bg-rose-600'; // Kick
-          if (pad.note === "D2") return 'bg-amber-500'; // Snare
-          if (pad.note.includes("#2")) return 'bg-cyan-600'; // Hats
+          if (pad.note === "C2" || pad.note === "B1") return 'bg-rose-600'; // Kicks
+          if (pad.note === "D2" || pad.note === "D#2" || pad.note === "C#2") return 'bg-amber-500'; // Snares/Claps
+          if (pad.note.includes("#2")) return 'bg-cyan-600'; // Hats (roughly)
+          if (pad.label.includes("Crash") || pad.label.includes("Ride") || pad.label.includes("China") || pad.label.includes("Bell")) return 'bg-yellow-600'; // Cymbals
+          if (pad.label.includes("Tom")) return 'bg-purple-600'; // Toms
           return 'bg-[#222]';
       }
 
@@ -120,7 +114,7 @@ const PadGrid: React.FC<PadGridProps> = ({ trackType = 'synth', rootNote = "C", 
           onPointerLeave={(e) => handlePadLeave(pad.note, e)}
         >
           {/* Label */}
-          <span className={`text-xs font-bold ${pad.isRoot || trackType === 'drum' ? 'text-white' : 'text-gray-600 group-active:text-black'}`}>
+          <span className={`text-[10px] font-bold ${pad.isRoot || trackType === 'drum' ? 'text-white' : 'text-gray-600 group-active:text-black'} text-center leading-tight`}>
             {pad.label}
           </span>
         </button>
