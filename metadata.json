@@ -1,0 +1,5 @@
+{
+  "name": "HÅW - Web DAW v0.4",
+  "description": "A mobile-first DAW prototype inspired by Ableton Note. Features a session view, a pad instrument, effects and midi editing.",
+  "requestFramePermissions": []
+}
