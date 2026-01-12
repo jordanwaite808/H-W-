@@ -5,7 +5,7 @@ import Knob from './Knob';
 import ClipEditor from './ClipEditor';
 import MiniTimeline from './MiniTimeline';
 import { audioService } from '../services/audioEngine';
-import { Grid3X3, Sliders, Disc, PlusCircle } from 'lucide-react';
+import { Grid3X3, Sliders, PlusCircle } from 'lucide-react';
 
 interface InstrumentPanelProps {
   currentStep: number;
@@ -121,7 +121,7 @@ const InstrumentPanel: React.FC<InstrumentPanelProps> = ({
                 trackType={activeTrack.type}
              />
 
-             {/* Header Overlay (Hidden if expanded to keep view clean, or styled differently) */}
+             {/* Header Overlay */}
              {!isExpanded && (
                  <div className="absolute top-2 left-2 pointer-events-none">
                     <span className="text-[10px] text-gray-400 font-mono font-bold">{activeClipName}</span>
@@ -137,14 +137,16 @@ const InstrumentPanel: React.FC<InstrumentPanelProps> = ({
       */}
       <div className={`flex-1 flex flex-col relative bg-black overflow-hidden transition-opacity duration-200 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
          
-         {/* Ghost Sequencer (Mid-bar) */}
-         <div className="h-8 bg-[#121212] flex items-center px-2 border-b border-white/5 shrink-0 z-20">
-             <MiniTimeline 
-               steps={activeSteps} 
-               currentStep={currentStep} 
-               onToggleStep={toggleStep} 
-             />
-         </div>
+         {/* Ghost Sequencer (Mid-bar) - Only for Drums */}
+         {isDrum && (
+             <div className="h-8 bg-[#121212] flex items-center px-2 border-b border-white/5 shrink-0 z-20">
+                 <MiniTimeline 
+                   steps={activeSteps} 
+                   currentStep={currentStep} 
+                   onToggleStep={toggleStep} 
+                 />
+             </div>
+         )}
 
          <div className="flex-1 relative">
             {/* TAB: PADS */}
@@ -176,27 +178,16 @@ const InstrumentPanel: React.FC<InstrumentPanelProps> = ({
                 </div>
             </div>
             
-            {/* Capture Button */}
-            {activeTab !== 'FX' && (
+            {/* Capture Button (Only show if new ideas present) */}
+            {activeTab !== 'FX' && isEmptyClip && hasInteracted && (
                 <div className="absolute bottom-6 right-6 z-30">
-                    {isEmptyClip ? (
-                        hasInteracted && (
-                            <button 
-                                onClick={handleCapture}
-                                className="h-12 px-6 rounded-full bg-daw-accent text-black font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(255,95,0,0.5)] animate-bounce"
-                            >
-                                <PlusCircle size={20} />
-                                <span>CAPTURE</span>
-                            </button>
-                        )
-                    ) : (
-                        <button 
-                            onClick={handleCapture}
-                            className="w-14 h-14 rounded-full bg-[#222] border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
-                        >
-                            <Disc size={24} className={audioService['inputBuffer']?.length > 0 ? "text-red-500 animate-pulse" : "text-gray-400"} />
-                        </button>
-                    )}
+                     <button 
+                         onClick={handleCapture}
+                         className="h-12 px-6 rounded-full bg-daw-accent text-black font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(255,95,0,0.5)] animate-bounce"
+                     >
+                         <PlusCircle size={20} />
+                         <span>CAPTURE</span>
+                     </button>
                 </div>
             )}
          </div>

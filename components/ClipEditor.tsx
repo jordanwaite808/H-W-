@@ -25,38 +25,34 @@ const ClipEditor: React.FC<ClipEditorProps> = ({
 
     // 1. Determine Scale Range
     const scaleRows = useMemo(() => {
-        // Get full potential range
         const fullScale = getScaleNotes(rootNote, scale, 1, 6);
         
         if (isExpanded) {
-            // Show a reasonable large range for editing
             return fullScale.filter(n => n.midi >= 36 && n.midi <= 84); // C2 to C6
         } else {
             // AUTO-ZOOM (Mini Mode)
-            // Find min/max midi in current notes
             if (notes.length === 0) {
-                // Default view: Root +/- 1 octave
-                // Just grab middle octave of the scale for empty clip
-                return fullScale.filter(n => n.midi >= 60 && n.midi <= 72);
+                // Default view centered around C3
+                return fullScale.filter(n => n.midi >= 48 && n.midi <= 72);
             }
             
             const noteMidis = notes.map(n => {
-                // Simple parser since we don't store MIDI numbers in NoteEvent yet
-                // Re-parsing is cheap for this prototype
                 const match = n.note.match(/([A-G][#b]?)(-?\d+)/);
                 if (!match) return 60;
-                // We'll rely on string matching to the fullScale array to find indices
-                const found = fullScale.find(fs => fs.note === n.note);
-                return found ? found.midi : 60;
+                // Try to match midi from note name
+                const fsNode = fullScale.find(fs => fs.note === n.note);
+                if (fsNode) return fsNode.midi;
+                
+                // Fallback calc
+                // C4 = 60? No C4=72 in some standards, lets stick to Tone.js standard (C4=72 approx or 60)
+                // We'll trust string matching for now
+                return 60; 
             });
 
             const min = Math.min(...noteMidis);
             const max = Math.max(...noteMidis);
 
-            // Add padding (1 note above, 1 note below in scale)
-            // Filter fullScale to be within [min - 2 semitones, max + 2 semitones] roughly
-            // Better: find indices in fullScale
-            const minIndex = fullScale.findIndex(n => n.midi === max); // High midi is low index
+            const minIndex = fullScale.findIndex(n => n.midi === max); // High midi is low index in our sorted array
             const maxIndex = fullScale.findIndex(n => n.midi === min);
 
             const start = Math.max(0, minIndex - 2);
@@ -92,8 +88,11 @@ const ClipEditor: React.FC<ClipEditorProps> = ({
         ctx.fillStyle = '#111';
         ctx.fillRect(0, 0, width, height);
 
-        // 2. Draw Grid
+        // 2. Draw Grid & Labels
         ctx.lineWidth = 1;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.font = 'bold 10px monospace';
         
         // Rows
         scaleRows.forEach((row, i) => {
@@ -107,6 +106,12 @@ const ClipEditor: React.FC<ClipEditorProps> = ({
             ctx.moveTo(0, y);
             ctx.lineTo(width, y);
             ctx.stroke();
+
+            // Label
+            if (isExpanded || scaleRows.length < 15) {
+                ctx.fillStyle = row.isRoot ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)';
+                ctx.fillText(row.note, 4, y + rowHeight / 2);
+            }
         });
 
         // Cols (16th notes)
@@ -120,7 +125,6 @@ const ClipEditor: React.FC<ClipEditorProps> = ({
         }
 
         // 3. Draw Notes
-        // Extract tailwind color hex or use fallback
         let noteColor = '#2dd4bf'; // Default teal
         if (color.includes('rose')) noteColor = '#f43f5e';
         if (color.includes('amber')) noteColor = '#f59e0b';
@@ -138,11 +142,10 @@ const ClipEditor: React.FC<ClipEditorProps> = ({
             // Draw Note Rect
             ctx.fillStyle = noteColor;
             
-            // Rounded rect simulation
             const padding = 1;
             ctx.fillRect(x + padding, y + padding, colWidth - (padding*2), rowHeight - (padding*2));
 
-            // Velocity Opacity (Optional polish)
+            // Velocity Opacity
             ctx.fillStyle = `rgba(0,0,0, ${1 - note.velocity})`; // Darken based on velocity
             ctx.fillRect(x + padding, y + padding, colWidth - (padding*2), rowHeight - (padding*2));
         });
@@ -202,8 +205,6 @@ const ClipEditor: React.FC<ClipEditorProps> = ({
                 velocity: 0.8
             };
             onUpdateNotes([...notes, newNote]);
-            
-            // Optional: Trigger sound preview here if desired
         }
     };
 

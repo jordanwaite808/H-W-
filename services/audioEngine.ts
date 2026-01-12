@@ -85,28 +85,31 @@ class AudioEngineService {
       volume: -4
     });
 
-    // --- Drum Engines ---
+    // --- Drum Engines (909 Inspired Tweaks) ---
     this.drumLowPass = new Tone.Filter(20000, "lowpass");
     
     this.drumKick = new Tone.MembraneSynth({
-        pitchDecay: 0.05,
-        octaves: 10,
+        pitchDecay: 0.02, // Faster pitch drop for punch
+        octaves: 5,
         oscillator: { type: "sine" },
-        envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 }
+        envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.0 },
+        volume: 2 // Boost kick slightly
     }).connect(this.drumLowPass);
 
     this.drumSnare = new Tone.NoiseSynth({
-        noise: { type: "white" },
-        envelope: { attack: 0.005, decay: 0.2, sustain: 0 }
+        noise: { type: "pink" }, // Pink noise has more body
+        envelope: { attack: 0.001, decay: 0.25, sustain: 0 },
+        volume: -2
     }).connect(this.drumLowPass);
 
     this.drumHiHat = new Tone.MetalSynth({
-        frequency: 200,
-        envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
-        harmonicity: 5.1,
-        modulationIndex: 32,
-        resonance: 4000,
-        octaves: 1.5
+        frequency: 250,
+        envelope: { attack: 0.001, decay: 0.05, release: 0.05 },
+        harmonicity: 4.1,
+        modulationIndex: 40,
+        resonance: 3000,
+        octaves: 1,
+        volume: -10
     }).connect(this.drumLowPass);
 
     Tone.Transport.bpm.value = 120;
@@ -151,7 +154,7 @@ class AudioEngineService {
 
   public setTrackVolume(trackId: string, db: number) {
       const channel = this.channelStrips.get(trackId);
-      if (channel) channel.volume.rampTo(db, 0.1);
+      if (channel) channel.volume.rampTo(db, 0.05); // Faster response
   }
 
   public setTrackMute(trackId: string, muted: boolean) {
@@ -165,7 +168,7 @@ class AudioEngineService {
   }
 
   public setMasterVolume(db: number) {
-      if (this.masterChannel) this.masterChannel.volume.rampTo(db, 0.1);
+      if (this.masterChannel) this.masterChannel.volume.rampTo(db, 0.05);
   }
 
   public updateMasterFX(state: MasterState) {
@@ -265,7 +268,6 @@ class AudioEngineService {
   }
   
   public setSnareTone(val: number) {
-      // NoiseSynth doesn't have pitch, but we can simulate tone via envelope or type
       if (this.drumSnare) this.drumSnare.envelope.decay = 0.05 + (val * 0.4);
   }
 
@@ -274,8 +276,6 @@ class AudioEngineService {
   }
 
   public setDrumDrive(val: number) {
-      // For now using the main Distortion bus for "Drive" or a localized filter effect
-      // Let's use the lowpass open amount
       if (this.drumLowPass) {
           const freq = 500 + (val * 15000);
           this.drumLowPass.frequency.rampTo(freq, 0.1);
@@ -452,7 +452,8 @@ class AudioEngineService {
   public setSpace(value: number) {
     if (this.reverb) {
        this.reverb.wet.rampTo(value, 0.1);
-       this.reverb.decay = 1 + (value * 10);
+       // Clamp to 8s max to avoid range errors
+       this.reverb.decay = 1 + (value * 7); 
     }
   }
   

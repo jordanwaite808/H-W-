@@ -52,7 +52,6 @@ const Mixer: React.FC<MixerProps> = ({
 
     // --- Helpers ---
     const dbToPercent = (db: number) => {
-        // Map -60dB (0%) to +6dB (100%)
         const range = 66; 
         const normalized = (db + 60) / range;
         return Math.max(0, Math.min(1, normalized)) * 100;
@@ -77,9 +76,6 @@ const Mixer: React.FC<MixerProps> = ({
     ) => {
         const heightPct = dbToPercent(volume);
         const levelDb = meterLevels[id] || -100;
-        
-        // Physics for Meter: Fast Attack is handled by Tone.Meter. 
-        // We just map it. range -60 to +6.
         const meterHeight = Math.max(0, Math.min(100, ((levelDb + 60) / 66) * 100));
 
         // Touch Drag Logic
@@ -104,13 +100,13 @@ const Mixer: React.FC<MixerProps> = ({
                         <>
                             <button 
                                 onClick={() => updateTrack(id, { isMuted: !isMuted })}
-                                className={`text-[10px] font-bold ${isMuted ? 'text-amber-500' : 'text-gray-600'}`}
+                                className={`text-[10px] font-bold w-full py-1 ${isMuted ? 'text-amber-500 bg-amber-500/10' : 'text-gray-600 hover:text-white'}`}
                             >
                                 M
                             </button>
                             <button 
                                 onClick={() => updateTrack(id, { isSoloed: !isSoloed })}
-                                className={`text-[10px] font-bold ${isSoloed ? 'text-blue-500' : 'text-gray-600'}`}
+                                className={`text-[10px] font-bold w-full py-1 ${isSoloed ? 'text-blue-500 bg-blue-500/10' : 'text-gray-600 hover:text-white'}`}
                             >
                                 S
                             </button>
@@ -135,19 +131,19 @@ const Mixer: React.FC<MixerProps> = ({
 
                 {/* Fader Area */}
                 <div 
-                    className="flex-1 w-full relative bg-[#151515] touch-none cursor-ns-resize group"
+                    className="flex-1 w-full relative bg-[#151515] touch-none cursor-ns-resize group select-none"
                     onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); handleMove(e); }}
                     onPointerMove={handleMove}
                 >
                     {/* Liquid Infill */}
                     {type !== 'master' && (
                         <div 
-                            className={`absolute bottom-0 left-0 right-0 transition-all duration-75 ease-out ${color} opacity-80`}
+                            className={`absolute bottom-0 left-0 right-0 transition-all duration-75 ease-out ${color} opacity-80 pointer-events-none`}
                             style={{ height: `${heightPct}%` }}
                         />
                     )}
 
-                    {/* Master is special: Grey BG, but meter shows sum */}
+                    {/* Master is special: Grey BG */}
                     {type === 'master' && (
                         <div 
                              className="absolute bottom-0 left-0 right-0 bg-white/10 pointer-events-none"
@@ -155,19 +151,23 @@ const Mixer: React.FC<MixerProps> = ({
                         />
                     )}
 
+                    {/* Fader Cap Line */}
+                    <div 
+                        className="absolute left-0 right-0 h-[2px] bg-white z-10 pointer-events-none shadow-[0_0_5px_rgba(255,255,255,0.5)]"
+                        style={{ bottom: `${heightPct}%` }}
+                    />
+
                     {/* Dual Lane Meter (Overlay) */}
-                    <div className="absolute inset-0 flex justify-center gap-[2px] pointer-events-none opacity-60 mix-blend-screen">
-                        {/* Left Channel */}
+                    <div className="absolute inset-0 flex justify-center gap-[2px] pointer-events-none opacity-60 mix-blend-screen z-0">
                         <div className="w-[3px] bg-black/50 h-full flex items-end">
                             <div 
-                                className={`w-full transition-all duration-75 ease-linear ${type === 'master' ? 'bg-white' : 'bg-white'}`} 
+                                className={`w-full transition-all duration-75 ease-linear bg-white`} 
                                 style={{ height: `${meterHeight}%` }} 
                             />
                         </div>
-                        {/* Right Channel (Mirrored for sim) */}
                         <div className="w-[3px] bg-black/50 h-full flex items-end">
                              <div 
-                                className={`w-full transition-all duration-75 ease-linear ${type === 'master' ? 'bg-white' : 'bg-white'}`} 
+                                className={`w-full transition-all duration-75 ease-linear bg-white`} 
                                 style={{ height: `${meterHeight * 0.95}%` }} 
                             />
                         </div>
@@ -185,7 +185,7 @@ const Mixer: React.FC<MixerProps> = ({
     };
 
     return (
-        <div className="flex-1 flex w-full h-full overflow-hidden">
+        <div className="flex-1 flex w-full h-full overflow-hidden select-none">
             {tracks.map(t => renderChannelStrip(
                 t.id, t.name, t.color, t.volume, t.isMuted, t.isSoloed, t.type,
                 (v) => updateTrack(t.id, { volume: v })
