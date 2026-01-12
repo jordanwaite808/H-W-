@@ -1,11 +1,12 @@
-export type ViewMode = 'PROJECTS' | 'SESSION' | 'INSTRUMENT';
-export type InstrumentTab = 'PADS' | 'SEQ' | 'FX';
+export type ViewMode = 'PROJECTS' | 'SESSION' | 'INSTRUMENT' | 'MIXER';
+export type InstrumentTab = 'PADS' | 'FX';
+export type MasterTab = 'MAIN' | 'DYN' | 'SAT';
 
 export interface NoteEvent {
-  note: string;     // e.g., "C3"
-  startTime: string; // "0:0:2" (Tone.Time notation)
-  step: number;     // 0-15
-  duration: string; // "16n"
+  note: string;
+  startTime: string;
+  step: number;
+  duration: string;
   velocity: number;
 }
 
@@ -14,7 +15,7 @@ export interface PadNote {
   label: string;
   id: number;
   isRoot: boolean;
-  intervalIndex: number; // For isomorphic coloring
+  intervalIndex: number;
 }
 
 export interface Clip {
@@ -22,15 +23,45 @@ export interface Clip {
   name: string;
   color: string;
   isPlaying: boolean;
-  notes: NoteEvent[]; // Replaces 'pattern' boolean array
-  duration: number; // in bars, default 1
+  notes: NoteEvent[];
+  duration: number;
 }
 
 export interface Track {
   id: string;
   type: 'synth' | 'bass' | 'drum';
   name: string;
+  color: string; // e.g., "bg-rose-500"
   clips: Clip[]; 
+  // Mixer State
+  volume: number; // -60 to +6 dB
+  pan: number;
+  isMuted: boolean;
+  isSoloed: boolean;
+}
+
+export interface MasterState {
+  volume: number;
+  dyn: {
+    lowGain: number;
+    midGain: number;
+    highGain: number;
+    compHiPass: number;
+    release: number;
+    threshold: number;
+    outputGain: number;
+    dryWet: number;
+  };
+  sat: {
+    drive: number;
+    analogClip: number;
+    colorLow: number;
+    colorFreq: number;
+    colorWidth: number;
+    colorHi: number;
+    output: number;
+    dryWet: number;
+  };
 }
 
 export interface Project {
@@ -38,9 +69,10 @@ export interface Project {
   name: string;
   lastModified: number;
   tracks: Track[];
+  master: MasterState; // New Master State
   bpm: number;
-  scale: string; // e.g., "Minor"
-  rootNote: string; // e.g., "C"
+  scale: string;
+  rootNote: string;
   macros: {
     filter: number;
     reso: number;

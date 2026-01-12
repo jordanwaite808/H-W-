@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Plus, FolderOpen } from 'lucide-react';
+import { Play, Plus, MoreHorizontal } from 'lucide-react';
 import { Track, Clip } from '../types';
 
 interface SessionViewProps {
@@ -29,12 +29,13 @@ const SessionView: React.FC<SessionViewProps> = ({ tracks, setTracks, onEditClip
   return (
     <div className="flex-1 flex flex-col bg-daw-bg pb-20">
       {/* Session Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#111] border-b border-white/5">
-        <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">Session View</span>
-        <button onClick={onOpenProjects} className="flex items-center gap-2 px-3 py-1.5 bg-[#222] rounded-full text-[10px] font-bold text-gray-300 active:bg-daw-accent active:text-black">
-            <FolderOpen size={12} />
-            PROJECTS
-        </button>
+      <div className="flex items-center justify-between px-4 py-4 bg-[#0a0a0a] border-b border-white/5">
+        <span className="text-sm font-bold text-gray-200 tracking-wider">Session View</span>
+        <div className="flex gap-2">
+            <button className="p-2 text-gray-500 hover:text-white">
+                <MoreHorizontal size={20} />
+            </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
@@ -72,7 +73,7 @@ const SessionView: React.FC<SessionViewProps> = ({ tracks, setTracks, onEditClip
                                 <span className="absolute top-2 left-2 text-[10px] font-bold text-white/90 truncate max-w-[70%]">{clip.name}</span>
                                 
                                 {/* Mini Visualization of Notes */}
-                                <div className="absolute inset-0 opacity-20 pointer-events-none flex items-end pb-2 px-2 gap-[1px]">
+                                <div className="absolute inset-0 opacity-30 pointer-events-none flex items-end pb-2 px-2 gap-[1px]">
                                     {clip.notes.sort((a,b) => a.step - b.step).map((n, i) => (
                                         <div key={i} className="bg-white w-1" style={{ height: `${n.velocity * 50}%` }} />
                                     ))}

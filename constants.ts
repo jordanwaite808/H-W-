@@ -30,16 +30,34 @@ const getNoteName = (midi: number): string => {
     return `${note}${octave}`;
 };
 
+// Generate a linear array of notes in scale for the Piano Roll
+export const getScaleNotes = (root: string, scaleName: string = "Minor", minOctave: number = 1, maxOctave: number = 6): { note: string, midi: number, isRoot: boolean }[] => {
+    const scaleIntervals = SCALES[scaleName] || SCALES["Minor"];
+    const rootIndex = NOTES.indexOf(root);
+    const notes = [];
+
+    for (let oct = minOctave; oct <= maxOctave; oct++) {
+        for (let i = 0; i < scaleIntervals.length; i++) {
+            const semitoneOffset = scaleIntervals[i];
+            const midi = (rootIndex + semitoneOffset) + ((oct + 1) * 12);
+            const noteName = getNoteName(midi);
+            
+            notes.push({
+                note: noteName,
+                midi: midi,
+                isRoot: semitoneOffset === 0
+            });
+        }
+    }
+    return notes.sort((a, b) => b.midi - a.midi); // High pitch first (Top of screen)
+};
+
 // Formula: f(x, y) = Root + Scale[Index(x, y) % ScaleLength] + 12 * floor(Index / ScaleLength)
 // Index(x, y) = x + (y * 3)
 export const generateIsomorphicGrid = (root: string, scaleName: string = "Minor", startOctave: number = 2): PadNote[] => {
     const scaleIntervals = SCALES[scaleName] || SCALES["Minor"];
     const scaleLength = scaleIntervals.length;
     const rootMidi = getMidiNote(root, startOctave);
-    
-    // 5x5 Grid. 
-    // Row 0 is Bottom (y=0), Row 4 is Top (y=4) visually in music theory usually.
-    // CSS Grid: Row 1 is Top. Let's map CSS Row 0..4 to Logic y=4..0
     
     const pads: PadNote[] = [];
 

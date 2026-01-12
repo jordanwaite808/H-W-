@@ -1,43 +1,79 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InstrumentTab, NoteEvent, Track } from '../types';
 import PadGrid from './PadGrid';
 import Knob from './Knob';
+import ClipEditor from './ClipEditor';
+import MiniTimeline from './MiniTimeline';
 import { audioService } from '../services/audioEngine';
-import { Grid3X3, Sliders, Activity } from 'lucide-react';
+import { Grid3X3, Sliders, Disc, PlusCircle } from 'lucide-react';
 
 interface InstrumentPanelProps {
   currentStep: number;
   activeClipId: string;
   notes: NoteEvent[];
   onUpdateNotes: (notes: NoteEvent[]) => void;
+  onUpdateBpm: (bpm: number) => void;
   macros: { filter: number; reso: number; space: number; heat: number };
   setMacros: (m: any) => void;
   activeTrack: Track;
 }
 
 const InstrumentPanel: React.FC<InstrumentPanelProps> = ({ 
-  currentStep, activeClipId, notes, onUpdateNotes, macros, setMacros, activeTrack 
+  currentStep, activeClipId, notes, onUpdateNotes, onUpdateBpm, macros, setMacros, activeTrack 
 }) => {
-  const [showSequencer, setShowSequencer] = useState(false);
+  const [activeTab, setActiveTab] = useState<InstrumentTab>('PADS');
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const isEmptyClip = notes.length === 0;
+
+  // Reset interaction state when switching clips
+  useEffect(() => {
+    if (isEmptyClip) {
+        audioService.clearBuffer();
+        setHasInteracted(false);
+    }
+  }, [activeClipId, isEmptyClip]);
+
+  const handlePadInteraction = () => {
+      if (isEmptyClip && !hasInteracted) {
+          setHasInteracted(true);
+          audioService.clearBuffer(); 
+      }
+  };
 
   const handleCapture = () => {
-      const captured = audioService.capturePerformance();
-      if (captured.length > 0) {
-          onUpdateNotes([...notes, ...captured]);
+      if (isEmptyClip) {
+          const result = audioService.analyzeTempoAndCapture();
+          if (result.notes.length > 0) {
+              onUpdateBpm(Math.round(result.bpm));
+              onUpdateNotes(result.notes);
+              setHasInteracted(false);
+          }
+      } else {
+          const captured = audioService.capturePerformance();
+          if (captured.length > 0) {
+              const newNotes = [...notes];
+              captured.forEach(n => {
+                  if (!newNotes.some(existing => existing.step === n.step && existing.note === n.note)) {
+                      newNotes.push(n);
+                  }
+              });
+              onUpdateNotes(newNotes);
+          }
       }
   };
 
   const toggleStep = (stepIndex: number) => {
-      // Simple sequencer toggle for prototype
+      // Toggle logic for Ghost Sequencer (MiniTimeline)
+      const root = activeTrack.type === 'bass' ? "C2" : (activeTrack.type === 'drum' ? "C2" : "C4");
       const existingAtIndex = notes.findIndex(n => n.step === stepIndex);
+      
       if (existingAtIndex !== -1) {
-          const newNotes = [...notes];
-          newNotes.splice(existingAtIndex, 1);
+          const newNotes = notes.filter(n => n.step !== stepIndex);
           onUpdateNotes(newNotes);
       } else {
-          // Add default note
           onUpdateNotes([...notes, {
-              note: activeTrack.type === 'bass' ? "C2" : "C4",
+              note: root,
               velocity: 0.8,
               startTime: `0:0:${stepIndex}`,
               step: stepIndex,
@@ -51,73 +87,140 @@ const InstrumentPanel: React.FC<InstrumentPanelProps> = ({
       fn(val);
   };
 
+  const currentClipColor = activeTrack.clips.find(c => c.id === activeClipId)?.color || 'bg-daw-accent';
+  
+  // Prepare Steps Boolean Array for MiniTimeline
+  const activeSteps = new Array(16).fill(false);
+  notes.forEach(n => { activeSteps[n.step] = true; });
+
+  const activeClipName = activeTrack.clips.find(c => c.id === activeClipId)?.name || 'Untitled';
+  const isDrum = activeTrack.type === 'drum';
+
   return (
     <div className="flex flex-col h-full bg-daw-bg relative">
       
-      {/* 1. Macro Strip */}
-      <div className="shrink-0 px-4 py-4 flex justify-between items-center bg-[#111] border-b border-white/5 z-20">
-         <Knob label="FILTER" value={macros.filter} onChange={(v) => updateMacro('filter', audioService.setFilterFrequency.bind(audioService), v)} />
-         <Knob label="RESO" value={macros.reso} onChange={(v) => updateMacro('reso', audioService.setFilterResonance.bind(audioService), v)} />
-         <Knob label="SPACE" value={macros.space} onChange={(v) => updateMacro('space', audioService.setSpace.bind(audioService), v)} />
-         <Knob label="HEAT" value={macros.heat} onChange={(v) => updateMacro('heat', audioService.setHeat.bind(audioService), v)} />
+      {/* 
+         TOP SECTION: Clip Editor 
+         If Expanded: Takes 100% Height
+         If Normal: Takes 45% Height
+      */}
+      <div className={`
+        flex flex-col shrink-0 bg-[#0a0a0a] transition-all duration-300 ease-in-out relative
+        ${isExpanded ? 'h-full z-40 absolute inset-0' : 'h-[45%]'}
+      `}>
+          <div className="flex-1 relative border-b border-white/5">
+             <ClipEditor 
+                notes={notes}
+                currentStep={currentStep}
+                color={currentClipColor}
+                rootNote="C"
+                scale={isDrum ? "Chromatic" : "Minor"} // Drums show all rows
+                isExpanded={isExpanded}
+                onToggleExpand={() => setIsExpanded(!isExpanded)}
+                onUpdateNotes={onUpdateNotes}
+                trackType={activeTrack.type}
+             />
+
+             {/* Header Overlay (Hidden if expanded to keep view clean, or styled differently) */}
+             {!isExpanded && (
+                 <div className="absolute top-2 left-2 pointer-events-none">
+                    <span className="text-[10px] text-gray-400 font-mono font-bold">{activeClipName}</span>
+                    {hasInteracted && isEmptyClip && <span className="ml-2 text-daw-accent font-bold animate-pulse text-[10px]">LISTENING...</span>}
+                 </div>
+             )}
+          </div>
       </div>
 
-      {/* 2. Main Performance Area */}
-      <div className="flex-1 relative bg-black">
+      {/* 
+         BOTTOM SECTION: Pads / FX / Navigation
+         Hidden if Expanded
+      */}
+      <div className={`flex-1 flex flex-col relative bg-black overflow-hidden transition-opacity duration-200 ${isExpanded ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
          
-         {/* Layer A: Pads */}
-         <div className="absolute inset-0 p-2 z-0">
-             <PadGrid trackType={activeTrack.type} rootNote="C" scale="Minor" />
+         {/* Ghost Sequencer (Mid-bar) */}
+         <div className="h-8 bg-[#121212] flex items-center px-2 border-b border-white/5 shrink-0 z-20">
+             <MiniTimeline 
+               steps={activeSteps} 
+               currentStep={currentStep} 
+               onToggleStep={toggleStep} 
+             />
          </div>
 
-         {/* Layer B: Sequencer Overlay (Ghost Layer) */}
-         {showSequencer && (
-             <div className="absolute inset-0 z-10 bg-black/80 backdrop-blur-sm p-4 grid grid-cols-4 grid-rows-4 gap-2">
-                 {Array.from({length: 16}).map((_, i) => {
-                     const hasNote = notes.some(n => n.step === i);
-                     const isCurrent = currentStep === i;
-                     return (
-                         <button
-                            key={i}
-                            onPointerDown={() => toggleStep(i)}
-                            className={`
-                                rounded-md border-2 transition-all
-                                ${hasNote ? 'bg-daw-clip border-daw-clip' : 'bg-transparent border-white/10'}
-                                ${isCurrent ? 'border-white brightness-150 scale-105' : ''}
-                            `}
-                         />
-                     )
-                 })}
-             </div>
-         )}
-         
-         {/* Capture Button Floating */}
-         <button 
-            onClick={handleCapture}
-            className="absolute bottom-6 right-6 w-16 h-16 rounded-full bg-daw-accent text-black font-black flex items-center justify-center shadow-[0_0_30px_rgba(255,95,0,0.4)] active:scale-95 z-30"
-         >
-             <div className="w-4 h-4 rounded-full bg-black animate-pulse" />
-         </button>
+         <div className="flex-1 relative">
+            {/* TAB: PADS */}
+            <div 
+                className={`absolute inset-0 p-2 z-0 transition-opacity duration-200 ${activeTab === 'PADS' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+                onPointerDown={handlePadInteraction}
+            >
+                <PadGrid trackType={activeTrack.type} rootNote="C" scale="Minor" />
+            </div>
 
-      </div>
+            {/* TAB: FX (Context Aware) */}
+            <div className={`absolute inset-0 bg-daw-bg p-8 z-0 transition-opacity duration-200 flex items-center justify-center ${activeTab === 'FX' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+                <div className="grid grid-cols-2 gap-x-12 gap-y-12">
+                    {isDrum ? (
+                        <>
+                            <Knob label="KICK" value={macros.filter} onChange={(v) => updateMacro('filter', audioService.setKickDecay.bind(audioService), v)} color="text-rose-500" />
+                            <Knob label="SNARE" value={macros.reso} onChange={(v) => updateMacro('reso', audioService.setSnareTone.bind(audioService), v)} color="text-amber-500" />
+                            <Knob label="HATS" value={macros.space} onChange={(v) => updateMacro('space', audioService.setHatDecay.bind(audioService), v)} color="text-cyan-500" />
+                            <Knob label="DRIVE" value={macros.heat} onChange={(v) => updateMacro('heat', audioService.setDrumDrive.bind(audioService), v)} color="text-white" />
+                        </>
+                    ) : (
+                        <>
+                            <Knob label="FILTER" value={macros.filter} onChange={(v) => updateMacro('filter', audioService.setFilterFrequency.bind(audioService), v)} color="text-emerald-400" />
+                            <Knob label="RESO" value={macros.reso} onChange={(v) => updateMacro('reso', audioService.setFilterResonance.bind(audioService), v)} color="text-amber-400" />
+                            <Knob label="SPACE" value={macros.space} onChange={(v) => updateMacro('space', audioService.setSpace.bind(audioService), v)} color="text-sky-400" />
+                            <Knob label="HEAT" value={macros.heat} onChange={(v) => updateMacro('heat', audioService.setHeat.bind(audioService), v)} color="text-rose-400" />
+                        </>
+                    )}
+                </div>
+            </div>
+            
+            {/* Capture Button */}
+            {activeTab !== 'FX' && (
+                <div className="absolute bottom-6 right-6 z-30">
+                    {isEmptyClip ? (
+                        hasInteracted && (
+                            <button 
+                                onClick={handleCapture}
+                                className="h-12 px-6 rounded-full bg-daw-accent text-black font-bold flex items-center gap-2 shadow-[0_0_20px_rgba(255,95,0,0.5)] animate-bounce"
+                            >
+                                <PlusCircle size={20} />
+                                <span>CAPTURE</span>
+                            </button>
+                        )
+                    ) : (
+                        <button 
+                            onClick={handleCapture}
+                            className="w-14 h-14 rounded-full bg-[#222] border border-white/20 text-white flex items-center justify-center active:scale-95 transition-transform"
+                        >
+                            <Disc size={24} className={audioService['inputBuffer']?.length > 0 ? "text-red-500 animate-pulse" : "text-gray-400"} />
+                        </button>
+                    )}
+                </div>
+            )}
+         </div>
 
-      {/* 3. Bottom Tab Bar */}
-      <div className="h-14 shrink-0 bg-[#0a0a0a] flex items-center justify-center gap-12 border-t border-[#222] pb-safe z-20">
-          <button 
-            onClick={() => setShowSequencer(false)}
-            className={`flex flex-col items-center gap-1 transition-colors ${!showSequencer ? 'text-daw-accent' : 'text-gray-600'}`}
-          >
-            <Grid3X3 size={20} />
-            <span className="text-[9px] font-bold">PADS</span>
-          </button>
-          
-          <button 
-             onClick={() => setShowSequencer(true)}
-             className={`flex flex-col items-center gap-1 transition-colors ${showSequencer ? 'text-daw-clip' : 'text-gray-600'}`}
-          >
-            <Activity size={20} />
-            <span className="text-[9px] font-bold">SEQ</span>
-          </button>
+         {/* Bottom Tabs */}
+         <div className="shrink-0 bg-[#0a0a0a] border-t border-[#222] pb-safe z-20">
+            <div className="h-14 flex items-center justify-center gap-12 px-8">
+                <button 
+                    onClick={() => setActiveTab('PADS')}
+                    className={`flex flex-col items-center gap-1.5 transition-colors p-2 ${activeTab === 'PADS' ? 'text-daw-accent' : 'text-zinc-600 hover:text-zinc-400'}`}
+                >
+                    <Grid3X3 size={20} />
+                    <span className="text-[10px] font-bold tracking-wider">PADS</span>
+                </button>
+                
+                <button 
+                    onClick={() => setActiveTab('FX')}
+                    className={`flex flex-col items-center gap-1.5 transition-colors p-2 ${activeTab === 'FX' ? 'text-purple-400' : 'text-zinc-600 hover:text-zinc-400'}`}
+                >
+                    <Sliders size={20} />
+                    <span className="text-[10px] font-bold tracking-wider">FX</span>
+                </button>
+            </div>
+         </div>
       </div>
     </div>
   );
